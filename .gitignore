@@ -1,2 +1,3 @@
-data
-Notebooks
+data/**
+!data/.gitkeep
+
