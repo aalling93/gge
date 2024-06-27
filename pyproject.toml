@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gge"
+version = "0.0.0.1"
+authors = [{ name="Aalling93", email="kaaso@space.dtu.dk" },]
+description = "gge python stuff "
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "earthengine-api>=0.1",
+  "geopandas>=1.0.0",
+  "google_api_python_client>=2.1",
+  "matplotlib>=3.6",
+  "numpy>=2.0.0",
+  "tqdm>=4.5"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/aalling93"
