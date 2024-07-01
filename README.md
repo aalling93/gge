@@ -1,5 +1,10 @@
 
 # Google Earth Engine Python Package (GGE)
+[![DOI](https://zenodo.org/badge/820947329.svg)](https://zenodo.org/doi/10.5281/zenodo.12607034)
+## License
+
+This work is licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License](LICENSE). So you better cite it.
+
 
 ## Introduction
 

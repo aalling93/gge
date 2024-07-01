@@ -20,9 +20,13 @@ class Sentinel2(SatelliteData):
         self.cloud_threshold = cloud_threshold
         self.pixel_types = PixelType.DN
 
+        self.reducer_function = "mean"
+        self.reduction_scale = 500
+
     @timing_decorator
     @exception_handler(default_return_value={})
     def download_data(self):
+        self._use_reducer = False
         collections = ["COPERNICUS/S2_SR_HARMONIZED"]
 
         for collection_id in collections:
@@ -36,16 +40,35 @@ class Sentinel2(SatelliteData):
 
             count = collection.size().getInfo()
             if count == 0:
-                print(f"No images found in collection {collection_id} for the given filters.")
+                self.logger.info(f"No images found in collection {collection_id} for the given filters.")
                 continue
 
             image_list = collection.toList(count)
             for i in range(count):
-                image = ee.Image(image_list.get(i))
-                try:
-                    self.images_data.append(self.convert_data(image))
-                except Exception as e:
-                    self.logger.error(f"Error converting image {image.id().getInfo()}: {e}")
+                if self._use_reducer is False:
+                    try:
+                        image = ee.Image(image_list.get(i))
+                        self.images_data.append(self.convert_data(image))
+                    except Exception as e:
+                        self.logger.error(f"Error converting image {image.id().getInfo()}: \nUse Reducer: {self._use_reducer}\nError: {e}")
+                        if i == 0:
+                            self.logger.info("Trying to change the reducer function and scale.")
+                        self._use_reducer = True
+                else:
+                    try:
+                        image = ee.Image(image_list.get(i))
+                        # Set default projection before reducing resolution
+                        default_projection = image.select(0).projection()  # Assuming band 0 has a valid projection
+                        image = (
+                            image.setDefaultProjection(default_projection)
+                            .reduceResolution(reducer=self._reducer_function, maxPixels=6024)
+                            .reproject("EPSG:4326", None, self.reduction_scale)
+                        )
+
+                        self.images_data.append(self.convert_data(image))
+                    except Exception as e:
+                        self.logger.error(f"Error converting image {image.id().getInfo()}: \nUse Reducer: {self._use_reducer}\nError: {e}")
+                        self._use_reducer = False
 
     def convert_data(self, image):
         band_names = image.bandNames().getInfo()
@@ -73,7 +96,7 @@ class Sentinel2(SatelliteData):
             self.logger.info("Data is already in DN.")
 
     def convert_dn_to_reflectance(self, band_data, metadata):
-        """ 
+        """
         see S2_MSI_Product_Specification page 403..
         """
         reflectance_data = {}
@@ -104,12 +127,63 @@ class Sentinel2(SatelliteData):
         return dn_data
 
     @property
+    def reducer_function(self):
+        return self._reducer_function
+
+    @reducer_function.setter
+    def reducer_function(self, value: str):
+
+        if value.lower() == "mean":
+            self._reducer_function = ee.Reducer.mean()
+        elif value.lower() == "median":
+            self._reducer_function = ee.Reducer.median()
+        elif value.lower() == "mode":
+            self._reducer_function = ee.Reducer.mode()
+        else:
+            raise ValueError("Invalid reducer function.")
+
+    @property
+    def reduction_scale(self):
+        return self._reduction_scale
+
+    @reduction_scale.setter
+    def reduction_scale(self, value: int = 100):
+        assert isinstance(value, int), "Reduction scale must be an integer."
+        if value < 10:
+            raise ValueError("Reduction scale must be equal to or greater than 10.")
+        if value > 1000:
+            self.logger.warning("Reduction scale is very high. Are you sure about this?")
+
+        self._reduction_scale = value
+
+    @property
     def item_type(self):
         return self._item_type
 
     @item_type.setter
     def item_type(self, value):
-        if value in ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12", "QA10", "QA20", "QA60", "NDVI", "EVI"]:
+        if value in [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B8A",
+            "B9",
+            "B10",
+            "B11",
+            "B12",
+            "QA10",
+            "QA20",
+            "QA60",
+            "NDVI",
+            "EVI",
+            "NDWI",
+            "RGB",
+        ]:
             self._item_type = value
         else:
             raise ValueError("Invalid item type.")

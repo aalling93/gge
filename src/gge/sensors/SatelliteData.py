@@ -57,8 +57,9 @@ class SatelliteData(ABC):
         if filepath.endswith(".geojson"):
             with open(filepath, "r") as file:
                 geojson = json.load(file)
-            del geojson
+
             area = ee.Geometry(geojson["features"][0]["geometry"])
+            del geojson
             return area
 
         elif filepath.endswith(".shp"):
