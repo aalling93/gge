@@ -213,18 +213,13 @@ class Sentinel2(SatelliteData):
 
         return array, metadata
 
-    def display_rgb(self, index, bands=["B4", "B3", "B2"], scale=255):
+    def display_rgb(self, index, bands=["B4", "B3", "B2"], scale=255, gamma=1.0, gain=1.0, red=1.0, green=1.0, blue=1.0):
         data = self.images_data[index]
         if data is not None:
-            rgb_image = self.convert_to_plotable_rgb({band: data["image_bands"][band] for band in bands}, scale)
+            rgb_image = self.convert_to_plotable_rgb({band: data["image_bands"][band] for band in bands}, scale, gamma, gain, red, green, blue)
             plt.imshow(rgb_image)
+            plt.axis("off")
             plt.show()
-
-    @staticmethod
-    def convert_to_plotable_rgb(array_dict, scale=255):
-        bands = np.stack([array_dict[band] for band in sorted(array_dict.keys())], axis=-1)
-        min_val, max_val = bands.min(), bands.max()
-        return ((bands - min_val) / (max_val - min_val) * scale).astype(np.uint8)
 
     def __len__(self):
         return len(self.images_data)
