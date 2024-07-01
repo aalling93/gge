@@ -1,3 +1,5 @@
 data/**
 !data/.gitkeep
 __pychache__
+.DS_STORE
+**/.DS_Store
