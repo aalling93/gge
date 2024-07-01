@@ -6,6 +6,7 @@ from gge.algorithms.band_math.indices import compute_NDVI, compute_EVI, compute_
 from gge.util import timing_decorator
 from typing import Tuple, Union
 from datetime import datetime
+from gge.util.types import PixelType
 
 
 class Landsat(SatelliteData):
@@ -17,6 +18,7 @@ class Landsat(SatelliteData):
     ):
         super().__init__(area, time_range)
         self.cloud_threshold = cloud_threshold
+        self.pixel_types = PixelType.DN
 
     @timing_decorator
     def download_data(self):
@@ -64,12 +66,20 @@ class Landsat(SatelliteData):
         return {"image_bands": band_data, "time": image.date().format().getInfo(), "metadata": image.getInfo()["properties"]}
 
     def dn_to_reflectance(self):
-        for img in self.images_data:
-            img["image_bands"] = self.convert_dn_to_reflectance(img["image_bands"], img["metadata"])
+        if self.pixel_types == PixelType.DN:
+            for img in self.images_data:
+                img["image_bands"] = self.convert_dn_to_reflectance(img["image_bands"], img["metadata"])
+            self.pixel_types = PixelType.Reflectance
+        else:
+            self.logger.info("Data is already in Reflectance.")
 
     def reflectance_to_dn(self):
-        for img in self.images_data:
-            img["image_bands"] = self.convert_reflectance_to_dn(img["image_bands"], img["metadata"])
+        if self.pixel_types == PixelType.Reflectance:
+            for img in self.images_data:
+                img["image_bands"] = self.convert_reflectance_to_dn(img["image_bands"], img["metadata"])
+            self.pixel_types = PixelType.DN
+        else:
+            self.logger.info("Data is already in DN.")
 
     def convert_dn_to_reflectance(self, band_data, metadata):
         reflectance_data = {}
@@ -150,8 +160,9 @@ class Landsat(SatelliteData):
             "NDVI",
             "EVI",
             "NDWI",
+            "RGB"
         ]
-        if value in valid_bands:
+        if value.upper() in valid_bands:
             self._item_type = value
         else:
             raise ValueError("Invalid item type.")
@@ -168,11 +179,11 @@ class Landsat(SatelliteData):
 
         if self._item_type in ["SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7", "SR_B8"]:
             array = bands[self._item_type]
-        elif self._item_type == "NDVI":
+        elif self._item_type.upper() == "NDVI":
             array = compute_NDVI(bands["SR_B4"], bands["SR_B5"])
-        elif self._item_type == "EVI":
+        elif self._item_type.upper() == "EVI":
             array = compute_EVI(bands["SR_B4"], bands["SR_B5"], bands["SR_B2"])
-        elif self._item_type == "NDWI":
+        elif self._item_type.upper() == "NDWI":
             if landsat_number == 4 or landsat_number == 5:
                 array = compute_NDWI(bands["SR_B3"], bands["SR_B5"])
             elif landsat_number == 7:
@@ -185,6 +196,14 @@ class Landsat(SatelliteData):
                 except KeyError:
                     self.logger.error(f"Band {self._item_type} not found in the image.")
                     array = None
+        elif self._item_type.upper() == "RGB":
+            array = self.convert_to_plotable_rgb(
+                {
+                    "SR_B4": bands["SR_B4"],
+                    "SR_B3": bands["SR_B3"],
+                    "SR_B2": bands["SR_B2"],
+                }
+            )
         else:
             raise ValueError(f"Band {self._item_type} not found in the image.")
 

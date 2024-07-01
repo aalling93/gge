@@ -26,6 +26,7 @@ Welcome to the Google Earth Engine (GGE) Python package, a powerful toolkit desi
 
 Harness the power of satellite imagery to explore and analyze the Earth's surface with ease. Whether you're conducting research, working on environmental projects, or developing innovative solutions, GGE offers the tools you need to achieve your goals.
 
+I have not implemeted all fully, but parts works in each folder, i.e., landsat, landcover, etc..
 ## Prerequisites
 
 Before using this package, ensure you have the following installed:
@@ -57,13 +58,10 @@ To install the package, follow these steps:
    pip install -e .
    ```
 
-## How to Use
 
 
 
-### Working with Landsat Data
-
-The GGE package provides a simple and intuitive interface for working with Landsat satellite data. Here are some examples:
+The GGE package provides a simple and intuitive interface for working with satellite data. Here are some examples:
 
 #### Downloading and Displaying RGB Images
 
@@ -108,6 +106,12 @@ img, meta = landsat[0]
 ```
 and then you get the EVI for image 0... 
 
+
+
+# models
+I have added a single model, for change detection/anomaly detection. It is the SOM model.
+
+It takes a 3D numpy array of, e.g., NDWI images from a region. It then traing a SOM model and finds where the anomlaies are. 
 
 
 

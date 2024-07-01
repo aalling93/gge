@@ -39,3 +39,4 @@ src/gge/sensors/sentinel3.py
 src/gge/util/__init__.py
 src/gge/util/exception_handler.py
 src/gge/util/logger.py
+src/gge/util/types.py

@@ -3,3 +3,9 @@ data/**
 __pychache__
 .DS_STORE
 **/.DS_Store
+
+
+**/*.pyc
+**/**.pyc
+
+

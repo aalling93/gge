@@ -63,8 +63,12 @@ class SatelliteData(ABC):
 
         elif filepath.endswith(".shp"):
             gdf = gpd.read_file(filepath)
-            gdf.set_crs("EPSG:3413", inplace=True)
-            gdf = gdf.to_crs(epsg=4326)
+            try:
+                gdf.set_crs("EPSG:3413", inplace=True)
+                gdf = gdf.to_crs(epsg=4326)
+            except Exception as e:
+                self.logger.info(f"CRS is {gdf.crs} (with {e})")
+
             geojson_str = gdf.to_json()
             geojson = json.loads(geojson_str)
             area = ee.Geometry(geojson["features"][0]["geometry"])
@@ -101,6 +105,7 @@ class SatelliteData(ABC):
             collection = f(collection)
         return collection
 
+    @exception_handler(default_return_value={})
     def convert_to_plotable_rgb(self, array_dict, scale=255, gamma=1.0, gain=1.0, red=1.0, green=1.0, blue=1.0):
         if gamma > 10:
             self.logger.warning("Gamma value is very high. It may cause overflow errors.")
