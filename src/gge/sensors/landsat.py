@@ -23,6 +23,9 @@ class Landsat(SatelliteData):
     @timing_decorator
     def download_data(self):
         collections = [
+            "LANDSAT/LM01/C02/T1",
+            "LANDSAT/LM02/C02/T1",
+            "LANDSAT/LM03/C02/T1",
             "LANDSAT/LT04/C02/T1_L2",
             "LANDSAT/LT05/C02/T1_L2",
             "LANDSAT/LE07/C02/T1_L2",
