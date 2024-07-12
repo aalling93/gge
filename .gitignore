@@ -8,4 +8,5 @@ __pychache__
 **/*.pyc
 **/**.pyc
 
-
+.venv
+*.egg-info
