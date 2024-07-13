@@ -9,6 +9,9 @@ from gge.util import exception_handler
 import sys
 import numpy as np
 import gc
+import time
+import os
+from tqdm import tqdm
 
 
 class SatelliteData(ABC):
@@ -31,6 +34,12 @@ class SatelliteData(ABC):
         self.time_range = time_range
         self.filters = []
         self.images_data = []
+
+        # this is for uploading images to google drive
+        self.google_drive_folder = os.environ["google_drive_folder"]
+        self.scale = 10
+        self.max_pixels = 1e13
+        self.allow_upload = False
 
     @property
     def area(self):
@@ -155,6 +164,26 @@ class SatelliteData(ABC):
         return np.clip(scaled_bands, 0, scale).astype(np.uint8)
 
     @exception_handler(default_return_value={})
+    def upload2gdrive(self, image, satellite, task_id):
+        if not self.allow_upload:
+            self.logger.info("Upload to Google Drive is disabled.")
+            return
+
+        task = ee.batch.Export.image.toDrive(
+            image=image,
+            description=f"{satellite}_ID{task_id}",
+            folder=self.google_drive_folder,
+            fileNamePrefix=f"{satellite}_ID{task_id}",
+            region=self.area,
+            scale=self.scale,
+            crs="EPSG:4326",
+            maxPixels=self.max_pixels,
+            fileFormat="GeoTIFF",
+        )
+        task.start()
+        self.wait_for_task(task)
+
+    @exception_handler(default_return_value={})
     def validate_geometry(self, geo):
         try:
             test = ee.FeatureCollection([ee.Feature(geo)]).size().getInfo()
@@ -178,7 +207,57 @@ class SatelliteData(ABC):
             if hasattr(self, attr):
                 delattr(self, attr)
         self._model = None
-        gc.collect()  # Suggest garbage collection to free up unused memory
+        gc.collect()
+
+    @property
+    def allow_upload(self):
+        return self._allow_upload
+
+    @allow_upload.setter
+    def allow_upload(self, value: bool):
+        self._allow_upload = value
+
+    @property
+    def google_drive_folder(self):
+        return self._google_drive_folder
+
+    @google_drive_folder.setter
+    def google_drive_folder(self, value: str):
+        self._google_drive_folder = value
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, value):
+        assert value > 0, "Scale must be greater than 0."
+        assert value <= 10000, "I really dont want you to use a scale greater than 10000."
+        assert type(value) is int, "Scale must be an integer."
+
+        self._scale = value
+
+    @property
+    def max_pixels(self):
+        return self._max_pixels
+
+    @max_pixels.setter
+    def max_pixels(self, value):
+        assert value > 0, "Max pixels must be greater than 0."
+
+        self._max_pixels = value
+
+    @exception_handler(default_return_value={})
+    def wait_for_task(self, task):
+        with tqdm(total=0, position=0, leave=True, bar_format="{l_bar}{bar} | {elapsed} elapsed") as pbar:
+            while task.active():
+                pbar.set_description(f"Task {task.id} is running")
+                time.sleep(30)
+            task_status = task.status()
+            self.logger.info(f"Task {task.id} completed with status: {task_status['state']}.")
+            if task_status["state"] != "COMPLETED":
+                self.logger.error(f"Task {task.id} failed with error: {task_status.get('error_message', 'No error message available')}")
+            pbar.set_description(f"Task {task.id} completed with status: {task_status['state']}")
 
     @abstractmethod
     def download_data(self):
