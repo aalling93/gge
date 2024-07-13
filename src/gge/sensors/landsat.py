@@ -6,7 +6,7 @@ from gge.algorithms.band_math.indices import compute_NDVI, compute_EVI, compute_
 from gge.util import timing_decorator
 from typing import Tuple, Union
 from datetime import datetime
-from gge.util.types import PixelType
+from gge.util.types import PixelType, satelliteSensors
 
 
 class Landsat(SatelliteData):
@@ -19,6 +19,7 @@ class Landsat(SatelliteData):
         super().__init__(area, time_range)
         self.cloud_threshold = cloud_threshold
         self.pixel_types = PixelType.DN
+        self.satelliteSensors = satelliteSensors.landsat  # str(self.satelliteSensors.landsat)
 
     @timing_decorator
     def download_data(self):
@@ -50,12 +51,25 @@ class Landsat(SatelliteData):
 
             image_list = collection.toList(count)
             if count > 0:
-                for i in range(count):
-                    image = ee.Image(image_list.get(i))
-                    try:
+                try:
+                    for i in range(count):
+                        image = ee.Image(image_list.get(i))
                         self.images_data.append(self.convert_data(image))
-                    except Exception as e:
-                        self.logger.error(f"Error converting image {image.id().getInfo()}: {e}")
+
+                except Exception as e:
+                    self.logger.error(f"Error converting image {image.id().getInfo()}: {e}")
+                    self.dwl_links = []
+                    if self._allow_upload:
+                        self.logger.info("Trying to upload to google drive")
+                        for i in range(count):
+                            image = ee.Image(image_list.get(i))
+                            image = image.toFloat()
+                            now = datetime.now()
+                            task_id = f"{now.strftime('%Y%m%dT%H%M')}"
+                            self.upload2gdrive(image=image, satellite=str(self.satelliteSensors), task_id=task_id)
+
+                            # 
+
             else:
                 self.logger.info(f"No images found in collection {collection_id} for the given filters.")
 
@@ -163,7 +177,7 @@ class Landsat(SatelliteData):
             "NDVI",
             "EVI",
             "NDWI",
-            "RGB"
+            "RGB",
         ]
         if value.upper() in valid_bands:
             self._item_type = value
