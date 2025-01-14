@@ -3,7 +3,6 @@ from typing import Tuple
 import numpy as np
 
 
-
 def init_transformer(
     filepath: str,
 ) -> Tuple[rasterio.transform.Affine, rasterio.crs.CRS]:

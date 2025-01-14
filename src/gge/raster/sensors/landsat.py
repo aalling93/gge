@@ -1,5 +1,4 @@
 import logging
-import gc
 import sys
 from typing import Tuple, List, Union, Optional
 import numpy as np
@@ -9,6 +8,7 @@ from gge.raster.geometry import transform_to_lonlat, transform_to_indices
 from gge.raster.geometry import GeoCoordinate, Coordinate
 from shapely.geometry import Polygon
 from gge.algorithms.band_math.indices import compute_NDVI, compute_EVI, compute_NDWI
+
 
 class Landsat:
     def __init__(
@@ -27,8 +27,7 @@ class Landsat:
         self.dataset = rioxarray.open_rasterio(data_path)
         self.transformer, self.crs = init_transformer(data_path)
 
-        self.band_names = {"band_name":self.dataset.long_name, "band_index": land.dataset.band.data.tolist()}
-        
+        self.band_names = {"band_name": self.dataset.long_name, "band_index": self.dataset.band.data.tolist()}
 
         return None
 
@@ -117,7 +116,7 @@ class Landsat:
             self.dataset.sizes["y"],
             self.dataset.sizes["x"],
         )
-    
+
     def data(
         self,
         band: Union[int, None] = None,
@@ -173,8 +172,7 @@ class Landsat:
             "SR_B5",
             "SR_B6",
             "SR_B7",
-            "SR_QA_AEROSOL"
-            "ST_B10",
+            "SR_QA_AEROSOL" "ST_B10",
             "ST_ATRAN",
             "NDVI",
             "EVI",
@@ -185,7 +183,6 @@ class Landsat:
             self._item_type = value
         else:
             raise ValueError("Invalid item type.")
-        
 
         def __getitem__(self, item):
             img = self.images_data[item]
@@ -225,9 +222,6 @@ class Landsat:
                 raise ValueError(f"Band {self._item_type} not found in the image.")
 
             return array, metadata
-    
-
-
 
     def __repr__(self) -> str:
         return f"""S1(data_path="{self.data_path}", validate= {self.validate}, verbose=0, save_path="{self.save_path}")"""

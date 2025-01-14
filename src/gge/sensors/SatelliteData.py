@@ -27,7 +27,11 @@ class SatelliteData(ABC):
             try:
                 ee.Initialize()
             except Exception as e:
-                self.logger.error(f"Error initializing Earth Engine: {e}")
+                self.logger.error(f"Error initializing Earth Engine: {e}. Reauthenticate with ee.Authenticate()")
+                try:
+                    ee.Authenticate()
+                except:
+                    pass
                 raise e
             self.logger.info("Earth Engine initialized.")
         self.area = area
@@ -67,7 +71,23 @@ class SatelliteData(ABC):
             with open(filepath, "r") as file:
                 geojson = json.load(file)
 
-            area = ee.Geometry(geojson["features"][0]["geometry"])
+                min_lon, min_lat = float("inf"), float("inf")
+                max_lon, max_lat = float("-inf"), float("-inf")
+
+                # Iterate through features and extract coordinates
+                for feature in geojson["features"]:
+                    coordinates = feature["geometry"]["coordinates"][0]  # Assuming a Polygon
+                    for lon, lat in coordinates:
+                        min_lon = min(min_lon, lon)
+                        max_lon = max(max_lon, lon)
+                        min_lat = min(min_lat, lat)
+                        max_lat = max(max_lat, lat)
+
+                # Resulting bounding box
+                bounding_box = (min_lon, min_lat, max_lon, max_lat)
+                area = ee.Geometry.Rectangle(bounding_box)
+
+            # area = ee.Geometry(geojson["features"][0]["geometry"])
             del geojson
             return area
 

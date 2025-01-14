@@ -13,3 +13,13 @@ __pychache__
 
 .env
 
+Notebooks/*
+!Notebooks/landcover.ipynb
+!Notebooks/landsat.ipynb
+!Notebooks/landsat_temps.ipynb
+!Notebooks/reanalysis.ipynb
+!Notebooks/raster.ipynb
+!Notebooks/s1.ipynb
+!Notebooks/Sentinel1.ipynb
+!Notebooks/Sentinel2.ipynb
+!Notebooks/SOM.ipynb
