@@ -40,7 +40,11 @@ class SatelliteData(ABC):
         self.images_data = []
 
         # this is for uploading images to google drive
-        self.google_drive_folder = os.environ["google_drive_folder"]
+        try:
+            self.google_drive_folder = os.environ["google_drive_folder"]
+        except:
+            self.google_drive_folder = None
+            pass
         self.scale = 10
         self.max_pixels = 1e13
         self.allow_upload = False
