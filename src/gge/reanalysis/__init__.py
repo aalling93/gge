@@ -7,6 +7,8 @@ from gge.reanalysis.eradaily import ERA5Daily
 from gge.reanalysis.GSMaP import JAXAGPMData
 from gge.reanalysis.SPEI import SPEIbaseData
 from gge.reanalysis.surfacetemp import NCEPRESurfaceTemp
+from gge.reanalysis.nuclear import ERA5Environment
+
 
 __all__ = [
     "WorldClimBio",
@@ -18,4 +20,5 @@ __all__ = [
     "JAXAGPMData",
     "SPEIbaseData",
     "NCEPRESurfaceTemp",
+    "ERA5Environment"
 ]

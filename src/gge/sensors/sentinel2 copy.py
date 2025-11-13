@@ -27,7 +27,8 @@ class Sentinel2(SatelliteData):
     @exception_handler(default_return_value={})
     def download_data(self):
         self._use_reducer = False
-        collections = ["COPERNICUS/S2_SR_HARMONIZED"]
+        # collections = ["COPERNICUS/S2_SR_HARMONIZED"]
+        collections = ["COPERNICUS/S2_HARMONIZED"]
 
         for collection_id in collections:
             collection = (
@@ -70,7 +71,7 @@ class Sentinel2(SatelliteData):
                         self.logger.error(f"Error converting image {image.id().getInfo()}: \nUse Reducer: {self._use_reducer}\nError: {e}")
                         self._use_reducer = False
 
-    def convert_data(self, image):
+    def convert_data2(self, image):
         band_names = image.bandNames().getInfo()
 
         band_data = {}
@@ -79,7 +80,37 @@ class Sentinel2(SatelliteData):
             band_data[band] = np.array(sample.get(band).getInfo())
         return {"image_bands": band_data, "time": image.date().format().getInfo(), "metadata": image.getInfo()["properties"]}
 
-    def dn_to_reflectance(self):
+    def convert_data(self, image):
+        """
+        Extract all Sentinel-2 bands as float32 numpy arrays within the AOI.
+        """
+        band_names = image.bandNames().getInfo()
+        band_data = {}
+
+        for band in band_names:
+            try:
+                sample = image.select(band).sampleRectangle(region=self.area, defaultValue=0)
+                arr = np.array(sample.get(band).getInfo(), dtype=np.float32)
+                band_data[band] = arr
+            except Exception as e:
+                self.logger.warning(f"Failed to extract band {band}: {e}")
+
+        return {
+            "image_bands": band_data,
+            "time": image.date().format("YYYY-MM-dd").getInfo(),
+            "metadata": image.getInfo().get("properties", {}),
+        }
+
+    def convert_dn_to_reflectance(self, band_data, metadata):
+        reflectance_data = {}
+        for band, arr in band_data.items():
+            if "SR_" in band or band.startswith("B"):
+                reflectance_data[band] = arr / 10000.0 if arr.max() > 1 else arr
+            else:
+                reflectance_data[band] = arr
+        return reflectance_data
+
+    def dn_to_reflectance2(self):
         if self.pixel_types == PixelType.DN:
             for img in self.images_data:
                 img["image_bands"] = self.convert_dn_to_reflectance(img["image_bands"], img["metadata"])
@@ -132,17 +163,35 @@ class Sentinel2(SatelliteData):
 
     @reducer_function.setter
     def reducer_function(self, value: str):
+        """
+        Set the reducer function used in reduceResolution.
+        Supports Earth Engine API changes (old/new).
+        """
         value = value.lower()
-        if value == "mean":
-            self._reducer_function = ee.Reducer.mean()
-        elif value == "median":
-            self._reducer_function = ee.Reducer.median()
-        elif value == "min":
-            self._reducer_function = ee.Reducer.min()
-        elif value == "max":
-            self._reducer_function = ee.Reducer.max()
-        else:
-            raise ValueError(f"Unsupported reducer: {value}")
+        try:
+            # Newer API versions (Oct 2024+)
+            if value == "mean":
+                self._reducer_function = ee.Reducer.meanReducer()
+            elif value == "median":
+                self._reducer_function = ee.Reducer.medianReducer()
+            elif value == "min":
+                self._reducer_function = ee.Reducer.minReducer()
+            elif value == "max":
+                self._reducer_function = ee.Reducer.maxReducer()
+            else:
+                raise ValueError(f"Unsupported reducer: {value}")
+        except AttributeError:
+            # Fallback for older API versions
+            if value == "mean":
+                self._reducer_function = ee.Reducer.mean()
+            elif value == "median":
+                self._reducer_function = ee.Reducer.median()
+            elif value == "min":
+                self._reducer_function = ee.Reducer.min()
+            elif value == "max":
+                self._reducer_function = ee.Reducer.max()
+            else:
+                raise ValueError(f"Unsupported reducer: {value}")
 
     @property
     def reduction_scale(self):
@@ -185,7 +234,6 @@ class Sentinel2(SatelliteData):
             "EVI",
             "NDWI",
             "RGB",
-            "ALL"
         ]:
             self._item_type = value
         else:
@@ -196,9 +244,6 @@ class Sentinel2(SatelliteData):
         img = self.images_data[item]
         metadata = img.get("metadata")
         bands = img.get("image_bands")
-        if self._item_type == "ALL":
-
-            return bands, metadata
 
         if self._item_type in ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A", "B9", "B10", "B11", "B12", "QA10", "QA20", "QA60"]:
             try:
@@ -214,7 +259,6 @@ class Sentinel2(SatelliteData):
             array = compute_NDWI(bands["B3"], bands["B8"])
         elif self._item_type.upper() == "RGB":
             array = self.convert_to_plotable_rgb({band: bands[band] for band in ["B4", "B3", "B2"]})
-            
         else:
             raise ValueError(f"Band {self._item_type} not found in the image.")
 
@@ -223,14 +267,10 @@ class Sentinel2(SatelliteData):
     def display_rgb(self, index, bands=["B4", "B3", "B2"], scale=255, gamma=1.0, gain=1.0, red=1.0, green=1.0, blue=1.0):
         data = self.images_data[index]
         if data is not None:
-            rgb_image = self.convert_to_plotable_rgb(
-                {band: data["image_bands"][band] for band in bands},
-                scale, gamma, gain, red, green, blue
-            )
-            figure = plt.imshow(rgb_image)
+            rgb_image = self.convert_to_plotable_rgb({band: data["image_bands"][band] for band in bands}, scale, gamma, gain, red, green, blue)
+            plt.imshow(rgb_image)
             plt.axis("off")
-            plt.close()
-            return figure
+            plt.show()
 
     def __len__(self):
         return len(self.images_data)
