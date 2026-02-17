@@ -23,3 +23,5 @@ Notebooks/*
 !Notebooks/Sentinel1.ipynb
 !Notebooks/Sentinel2.ipynb
 !Notebooks/SOM.ipynb
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md
